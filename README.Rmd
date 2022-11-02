@@ -24,7 +24,7 @@ df <- tibble(
             ,"README RMarkdown"),
   url = c("https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/Presentation/presentation.md",
           "https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/Presentation/presentation.Rmd",
-          "https://github.com/RisasDentalManagement/Analytics-GithubDocuments/blob/master/DataflowsPBI.md"))
+          "https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/README.Rmd"))
   
 
 df2 = df %>%
