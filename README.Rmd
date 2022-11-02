@@ -1,0 +1,41 @@
+---
+title: "Introduction"
+output: github_document
+---
+
+This repo contains an monte carlo simulation that was part of a capstone project I worked on for a monte carlo methods class in grad school. The data, presentation, and R Markdown output document with embedded code is included
+
+All of the html and markdown documents or files rendered here were created using RMarkdown (https://rmarkdown.rstudio.com/index.html). 
+
+I am using github documents output format in a README.Rmd to create this README.md file GitHub renders as a sort of de-facto landing page for this repo. 
+
+This repo had renv (https://rstudio.github.io/renv/articles/renv.html) initialized for reproducibility; keep in mind there are system dependencies (e.g. Rtools, etc.) on top of package dependencies
+
+Below is a table with some links for easy navigation of this repo
+
+```{r table-links, echo=FALSE, warning=FALSE, message=FALSE }
+
+library(gt)
+library(tidyverse)
+
+df <- tibble(
+  Topic = c("Presentation slides"
+            ,"Presentation RMarkdown"
+            ,"README RMarkdown"),
+  url = c("https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/Presentation/presentation.md",
+          "https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/Presentation/presentation.Rmd",
+          "https://github.com/RisasDentalManagement/Analytics-GithubDocuments/blob/master/DataflowsPBI.md"))
+  
+
+df2 = df %>%
+    mutate(
+        url = glue::glue("[link]({url})"),
+        url = map(url, gt::md))
+
+knitr::kable(df2)
+
+
+
+```
+
+
