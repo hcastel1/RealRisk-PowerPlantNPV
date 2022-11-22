@@ -1,0 +1,439 @@
+---
+title: "Distribution Fitting and Monte Carlo Simulation R Code"
+date: "November 2, 2016"
+output: word_document
+---
+
+#Distribution Fitting
+
+#updated 11.2022
+If you plan on running the below code code you will need to install the necessary packages and any dependencies. Renv was initialized in this repo to ease in installed required dependencies if you clone this repo. This was the RMarkdown script I wrote that generated the appendix addendum we ultimately turned in with the project presentation. Was the perfect use case of showing code with open text summary explanations; you can see my write-up was pretty poorly formatted as I was just learning RMarkdown at the time
+
+```{r Read in Excel data, message=FALSE, warning=FALSE, include=FALSE}
+#read in data
+library(readxl)
+library(magrittr)
+
+#Construction Data
+construc = read_excel(paste0(getwd(),"/Data/Global Construction Costs - no zeroes.xls"), sheet = "Sheet1")
+
+#Capacity Factor Data
+capacity.Factor <- data.frame(read.csv(paste0(getwd(),"/Data/Capacity Factors - Tim.csv")))
+
+#Electricity Prices
+elect.prices <- data.frame(read.csv(paste0(getwd(),"/Data/Elect_prices.csv")))
+
+```
+
+```{r read in required libraries, message=FALSE, warning=FALSE}
+library(fitdistrplus) #functions for fitting distributions by MoM, MLE, etc.
+library(dplyr) #functions for efficient data wrangling, etc. 
+library(actuar) #additional density functions that can be passed to fitting algorithms from fitdistrplus package 
+```
+
+```{r data pre-processing, echo=TRUE, message=FALSE, warning=FALSE}
+lapply(construc, class) #make sure data types where read in correctly
+
+#Create construction time metric
+
+construc <- mutate (construc, constr_time = comm_op_year - constr_year)
+
+elect.prices <- subset(elect.prices, elect.prices$PJM.Wholesale...MWh!="NA") #remove NA rows
+
+elect.price <- data.frame(elect.prices$PJM.Wholesale...MWh) #keep only Wholsale price column
+names(elect.price) <- c("PJM Wholesale") #rename column
+```
+
+***
+
+The below code runs through numerous continuous distributions for which maximum likelihood or method of moments (moment matching) could be used to estimate shape and scale parameters. In addition to continuous distributions generally well known, various heavy tailed distributions common in actuarial science, risk theory, etc. are fit. If a well-known distribution is not listed (e.g. beta) it's because it's shape doesn't make sense for the data or there were computational issues that were beyond the scope intended. 
+
+The Akaike (AIC) and Bayesian (BIC) information criterion were used as measures of goodness of fit to choose between the distributions so as to not rely solely on visual inspection of diagnostic and fit plots. The final distribution chosen was that which minimized both the AIC and BIC values. Fit measures were used to choose final distributions used because of a lack of theory to guide distributional assumptions despite the risk of over-fitting.  
+
+###Distribution Fitting for Overnight Construction Costs
+
+<br>
+
+```{r plot OCC empirical density, fig.width=10, message=FALSE, warning=FALSE}
+hist <- hist(construc$occ, xlab = "total overnight construction costs", main = "Empirical Construction Cost Density")
+```
+
+***
+
+```{r fit distributions for OCC, echo=TRUE, fig.width=10, message=FALSE, warning=FALSE}
+#########################################################################
+#########################################################################
+#fit distributions for overnight construction costs ON NON-TRUNCATED DATA
+#########################################################################
+#########################################################################
+
+fitW <- fitdist(construc$occ, "weibull", method = "mle") #weibull
+fitg <- fitdist(construc$occ, "gamma", method = "mme") #gamma ; had to fit using moment-matching
+fitln <- fitdist(construc$occ, "lnorm", method = "mle") #log-normal
+fitn <- fitdist(construc$occ, "norm", method = "mle") #normal
+fitlo <- fitdist(construc$occ, "logis", method = "mle") #logistic
+fitexp <- fitdist(construc$occ, "exp", method = "mme") #exponential
+fitcauchy <- fitdist(construc$occ, "cauchy", method = "mle") #cauchy
+
+fitf <- fitdist(construc$occ, "f", start =list(df1=.0001,df2 =.0005), method = "mle") #F-Distribution
+fitt <- fitdist(construc$occ, "t", start = list(df = 3), method = "mle") #t-distribution (1)
+
+#The below fits using density functions from the actuaral functions package
+#Requires passing the shape and scale parameters as starting values are they are outlined in actuar package documentation as a list
+
+fp <- fitdist(construc$occ, "pareto", start = list(shape = 100, scale = 500)) #pareto
+fitplo <- fitdist(construc$occ, "paralogis", start = list(shape = 1, scale = 500), method = "mle") #para-logistic
+fitllo <- fitdist(construc$occ, "llogis", start = list(shape = 1, scale = 500), method = "mle") #log-logistic
+fitlg <- fitdist(construc$occ, "lgamma", start = list(shapelog = 1, ratelog = 500), method = "mle") #log-gamma
+fIW <- fitdist(construc$occ, "invweibull", start=list(shape = 1, scale = 500), method = "mle") #inverse-weibull
+fItrg <- fitdist(construc$occ, "invtrgamma", start=list(shape1 = 100, shape2 = 100, scale = 500), method = "mle") #inverse-transformed gamma (1)
+fIp <- fitdist(construc$occ, "invpareto", start=list(shape = 200, scale = 500), method = "mle") #inverse-pareto
+fitIplo <- fitdist(construc$occ, "invparalogis", start = list(shape = 1, scale = 500), method = "mle") #inverse para-logistic
+fitIg <- fitdist(construc$occ, "invgamma", start = list(shape = 1, rate = 500), method = "mle") #inverse-gamma
+fitIexp <- fitdist(construc$occ, "invexp", start = list(scale = 500), method = "mle") #inverse-exponential
+
+fIburr <- fitdist(construc$occ, "invburr", start=list(shape1 = 100, shape2 = 100, scale = 500), method = "mle") #inverse-burr
+fGpar <- fitdist(construc$occ, "genpareto", start=list(shape1 = 100, shape2 = 100, scale = 500), method = "mle") #generalized-pareto
+
+
+#Use summary function to return IC statistics and parameter estimates
+
+summary(fitW) #weibull
+summary(fitg) #gamma
+summary(fitln) #log-normal
+summary(fitn) #normal
+summary(fitlo) #logistic
+summary(fitexp) #exponential
+summary(fitcauchy) #cauchy
+
+summary(fitf) #F
+summary(fitt) #t
+summary(fp) #pareto
+summary(fitplo) #para-logistic
+summary(fitllo) #log-logistic
+summary(fitlg) #log-gamma
+summary(fIW) #inverse-weibull
+summary(fItrg) #inverse-transformed gamma
+summary(fIp) #inverse-pareto
+summary(fitIplo) #inverse-para-logistic
+summary(fitIg) #inverse-gamma
+summary(fitIexp) #inverse-exponential
+summary(fIburr) #inverse-burr
+summary(fGpar) #generalized-pareto
+
+
+```
+
+***
+
+```{r fit plots for OCC, fig.width=9, message=FALSE, warning=FALSE}
+#Use plot functions to create fit and diagnostic plots for visual inspection of fit
+plot(fitlg)  #best fit(s) per Information Criterion
+```
+
+
+***
+
+###Distribution Fitting for Construction Time
+
+<br>
+
+```{r plot empirical time density, fig.width=9, message=FALSE, warning=FALSE}
+hist <- hist(construc$constr_time, xlab = "Total Construction Time", main = "Empirical Construction Time Density")
+```
+
+***
+
+```{r fit distribution for construction time, echo=TRUE, fig.width=9, message=FALSE, warning=FALSE}
+########################################
+########################################
+#fit distributions for construction time
+########################################
+########################################
+
+fitW <- fitdist(construc$constr_time, "weibull", method = "mle") #weibull
+fitg <- fitdist(construc$constr_time, "gamma", method = "mme") #gamma ; had to fit using moment-matching
+fitln <- fitdist(construc$constr_time, "lnorm", method = "mle") #log-normal
+fitn <- fitdist(construc$constr_time, "norm", method = "mle") #normal
+fitlo <- fitdist(construc$constr_time, "logis", method = "mle") #logistic
+fitexp <- fitdist(construc$constr_time, "exp", method = "mme") #exponential
+fitcauchy <- fitdist(construc$constr_time, "cauchy", method = "mle") #cauchy
+
+fitf <- fitdist(construc$constr_time, "f", start =list(df1=.0001,df2 =.0005), method = "mle") #F-Distribution
+fitt <- fitdist(construc$constr_time, "t", start = list(df = 3), method = "mle") #t-distribution (1)
+
+#The below fits using density functions from the actuaral functions package
+#Requires passing the shape and scale parameters as starting values are they are outlined in actuar package documentation as a list
+
+fp <- fitdist(construc$constr_time, "pareto", start = list(shape = 100, scale = 500)) #pareto
+fitplo <- fitdist(construc$constr_time, "paralogis", start = list(shape = 1, scale = 500), method = "mle") #para-logistic
+fitllo <- fitdist(construc$constr_time, "llogis", start = list(shape = 1, scale = 500), method = "mle") #log-logistic
+fitlg <- fitdist(construc$constr_time, "lgamma", start = list(shapelog = 1, ratelog = 500), method = "mle") #log-gamma
+fIW <- fitdist(construc$constr_time, "invweibull", start=list(shape = 1, scale = 500), method = "mle") #inverse-weibull
+fItrg <- fitdist(construc$constr_time, "invtrgamma", start=list(shape1 = 1, shape2 = 1, scale = 500), method = "mle") #inverse-transformed gamma (1)
+fIp <- fitdist(construc$constr_time, "invpareto", start=list(shape = 200, scale = 500), method = "mle") #inverse-pareto
+fitIplo <- fitdist(construc$constr_time, "invparalogis", start = list(shape = 1, scale = 500), method = "mle") #inverse para-logistic
+fitIg <- fitdist(construc$constr_time, "invgamma", start = list(shape = 1, rate = 500), method = "mle") #inverse-gamma
+fitIexp <- fitdist(construc$constr_time, "invexp", start = list(scale = 500), method = "mle") #inverse-exponential
+
+fIburr <- fitdist(construc$constr_time, "invburr", start=list(shape1 = 100, shape2 = 100, scale = 500), method = "mle") #inverse-burr
+fGpar <- fitdist(construc$constr_time, "genpareto", start=list(shape1 = 100, shape2 = 100, scale = 500), method = "mle") #generalized-pareto
+
+
+#Use summary function to return IC statistics and parameter estimates
+
+summary(fitW) #weibull
+summary(fitg) #gamma
+summary(fitln) #log-normal
+summary(fitn) #normal
+summary(fitlo) #logistic
+summary(fitexp) #exponential
+summary(fitcauchy) #cauchy
+
+summary(fitf) #F
+summary(fitt) #t
+summary(fp) #pareto
+summary(fitplo) #para-logistic
+summary(fitllo) #log-logistic
+summary(fitlg) #log-gamma
+summary(fIW) #inverse-weibull
+summary(fItrg) #inverse-transformed gamma
+summary(fIp) #inverse-pareto
+summary(fitIplo) #inverse-para-logistic
+summary(fitIg) #inverse-gamma
+summary(fitIexp) #inverse-exponential
+summary(fIburr) #inverse-burr
+summary(fGpar) #generalized-pareto
+
+
+```
+
+***
+
+```{r fit plots for construction time, fig.width=10, message=FALSE, warning=FALSE}
+plot(fIW) #best fit per Information Criterion
+```
+
+***
+
+###Distribution Fitting for Capacity Factor
+
+<br>
+
+```{r plot empirical capacity factor density, fig.width=9, message=FALSE, warning=FALSE}
+hist <- hist(capacity.Factor$percentage, xlab = "Plant-level Capacity Factors", main = "Empirical Capacity Factor Density")
+```
+
+***
+
+```{r, message=FALSE, warning=FALSE}
+########################################
+########################################
+#fit distribution for Capacity Factor
+########################################
+########################################
+
+
+#######ONLY SHOWS BEST FIT DISTRIBUTION##########
+
+fitW <- fitdist(capacity.Factor$percentage, "weibull", method = "mle") #weibull
+summary(fitW) 
+
+```
+
+***
+
+```{r fit plots for capacity factor, fig.width=10, message=FALSE, warning=FALSE}
+plot(fitW)  #best fit per Information Criterion
+```
+
+***
+
+###Distribution Fitting for Electricity Prices
+
+<br>
+
+```{r plot empirical electricity price density, fig.width=9, message=FALSE, warning=FALSE}
+hist <- hist(elect.price$`PJM Wholesale`, xlab = "Average Annual Wholesale Electricity Prices", main = "Empirical Electricity Price Density")
+```
+
+***
+
+```{r, message=FALSE, warning=FALSE}
+########################################
+########################################
+#fit distribution for Electricity Prices
+########################################
+########################################
+
+
+#######ONLY SHOWS BEST FIT DISTRIBUTION##########
+
+fitIplo <- fitdist(elect.price$`PJM Wholesale`, "invparalogis", start = list(shape = 1, scale = 500), method = "mle") #inverse para-logistic
+summary(fitIplo) 
+
+```
+
+***
+
+```{r fit plots for electricity prices, fig.width=10, message=FALSE, warning=FALSE}
+plot(fitIplo) 
+```
+
+***
+
+###Understanding Random Covariate Draws from Chosen Distributions
+
+```{r Understanding Random Draws, echo=TRUE, message=FALSE, warning=FALSE}
+
+# #Draw 10k covariates from fitted distributions to get a sense of possible values that can be drawn for simulation -- output and review in Excel
+# 
+# time.draw <- rinvweibull(10000, fIW$estimate[1], rate = 1, scale = fIW$estimate[2]) #draws 1 each simulation
+# 
+# occ.draw <- rlgamma(10000, shapelog = fitlg$estimate[1], ratelog = fitlg$estimate[2]) #draws 1 each simulation from truncated dist
+# 
+# Capac.draw <- rweibull(10000, shape = fitW$estimate[1], scale = fitW$estimate[2]) #draws 60 each simulation 
+# 
+# Price.draw <- rinvparalogis(10000, shape = fitIplo$estimate[1], rate = 1, scale = fitIplo$estimate[2]) #draws 60 each simulation
+# 
+# # Load workbook (create if not existing)
+# wb <- loadWorkbook("/Users/Unholi/Documents/JohnsHopkins_MSApplied Economics/JHU Real Risk_FA16/R/Project/Random Draws.xlsx", create = TRUE)
+# 
+# time.df <- data.frame(time.draw) #output data has to be data frame
+# occ.df <- as.data.frame(occ.draw)
+# capac.df <- as.data.frame(Capac.draw)
+# price.df <- as.data.frame(Price.draw)
+# 
+# # Create a worksheet called 'time'
+# createSheet(wb, name = "time")
+# 
+# # Create a worksheet called 'occ'
+# createSheet(wb, name = "occ")
+# 
+# # Create a worksheet called 'capacity'
+# createSheet(wb, name = "capacity")
+# 
+# # Create a worksheet called 'price'
+# createSheet(wb, name = "price")
+# 
+# writeWorksheet(wb, time.df, sheet="time", startRow = 1, startCol = 1, header = TRUE) 
+# writeWorksheet(wb, occ.df, sheet = "occ", startRow = 1, startCol = 1)
+# writeWorksheet(wb, capac.df, sheet = "capacity", startRow = 1, startCol = 1)
+# writeWorksheet(wb, price.df, sheet = "price", startRow = 1, startCol = 1)
+# 
+# saveWorkbook(wb)
+
+```
+
+
+***
+
+#Monte Carlo Simulation
+
+The Monte Carlo Simulation facilitates varying of the uncertainties in our specified value function for NPV so that in the end we get a distribution of NPV from which we can make appropriate inferences. 
+
+```{r Monte Carlo Simulation of NPV, echo=TRUE, message=FALSE, warning=FALSE}
+#########################################################################################################################
+#Use Monte Carlo Simulation to bake uncertainties into Net Present Value Calculation for Midterm Risk Assesment Project##
+#########################################################################################################################
+
+NPV.dist <- as.numeric(c(rep(0,10000))) #create empty storage vector to hold final NPV for each trial
+CC.dist <- as.numeric(c(rep(0,10000))) #create empty storage vector to hold final capital cost for each trial
+OP.dist <- as.numeric(c(rep(0,10000))) #create empty storage vector to hold final operating profit for each trial
+DECOM.dist <- as.numeric(c(rep(0,10000))) #create empty storage vector to hold final decommission cost for each trial
+
+r <- .07 #discount rate for each trial
+
+for (i in 1:10000) { #each loop is 1 trial in the simulation
+  
+######################
+####CAPITAL COST######
+######################
+
+time.draw <- 25 #truncate inverse weibull distribution so that time draw is less than 25 years
+
+while (time.draw > 24) {
+
+time.draw <- rinvweibull(1, fIW$estimate[1], rate = 1, scale = fIW$estimate[2]) #draws 1 each simulation from truncated dist
+
+}
+
+cost.vec <- as.numeric(c(rep(0,round(time.draw)))) #create empty storage vector to store cost results
+occ.draw.vect <- as.numeric(c(rep(0,round(time.draw)))) #create empty storage vector to store occ draw results
+
+occ.draw <- 11000 #truncate log-gamma distribution so that occ draw is less than 11 billion
+
+while (occ.draw > 10999) {
+  
+  occ.draw <- rlgamma(1, shapelog = fitlg$estimate[1], ratelog = fitlg$estimate[2]) #draws 1 each simulation from truncated dist
+  
+}
+
+for (t in 1 : round(time.draw)) {
+  
+      x <- (1 / round(time.draw)) * (occ.draw * 1000000) * ((1 + r)^(round(time.draw) - t + 1)) # occ + financing costs
+  
+      cost.vec[t] <- x #stores results in vector to be summed over to arrive at total Capital Cost for the reactor
+  
+      #store draw result for occ for 1 trial; should be the same for each loop or you are drawing more than 1 occ
+      occ.draw.vect[t] <- occ.draw
+     
+    }
+
+Capital.Cost <- sum(cost.vec)
+
+CC.dist[i] <- Capital.Cost
+
+############################
+####DECOMMISSIONING COST####
+############################
+
+Decommission.Cost <- (.12 * (occ.draw * 1000000)) / (1 + r)^61 #1-time decommission cost
+
+DECOM.dist[i] <- Decommission.Cost
+
+########################
+####OPERATING PROFIT####
+########################
+
+Gen.vec <- as.numeric(c(rep(0,60))) #create empty storeage vector
+capac.draw.vec <- as.numeric(c(rep(0,60))) #create empty storeage vector
+price.draw.vec <- as.numeric(c(rep(0,60))) #create empty storeage vector
+Operat.vec <- as.numeric(c(rep(0,60))) #create empty storeage vector
+
+for (j in 1:60) { #60 years operating life
+  
+    #draws 60 each simulation since draw is within operating life for loop nested within simulation for loop
+    Capac.draw <- rweibull(1, shape = fitW$estimate[1], scale = fitW$estimate[2]) 
+    
+    #draws 60 each simulation since draw is within operating life for loop nested within simulation for loop
+    Price.draw <- rinvparalogis(1, shape = fitIplo$estimate[1], rate = 1, scale = fitIplo$estimate[2])  
+  
+    Gen <- (1000 * 8760 * Capac.draw)
+  
+    #vector to be summed over to arrive at operating profit over the life of the reactor
+    Operat.vec[j] <- ((Gen * Price.draw) - (Gen * 8.31) - 93280000) / (1 + r)^j 
+    
+    #store price and capacity factor draws as well as generation calculation for audit purposes
+    capac.draw.vec[j] <- Capac.draw
+    price.draw.vec[j] <- Price.draw
+    Gen.vec[j] <- Gen 
+  
+ }
+
+ Operating.Profit <- sum(Operat.vec)
+ 
+ OP.dist[i] <- Operating.Profit
+
+##################
+#NET PRESENT VALUE
+##################
+
+ NPV.dist[i] <- Operating.Profit - Capital.Cost - Decommission.Cost
+
+
+} #END Simulation
+```
+
+
+
