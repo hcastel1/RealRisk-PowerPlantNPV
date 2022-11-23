@@ -19,8 +19,9 @@ dependencies (e.g. Rtools, etc.) on top of package dependencies
 
 Below is a table with some links for easy navigation of this repo
 
-| Topic                  | url                                                                                                  |
-|:-----------------------|:-----------------------------------------------------------------------------------------------------|
-| Presentation slides    | [link](https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/Presentation/presentation.md)  |
-| Presentation RMarkdown | [link](https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/Presentation/presentation.Rmd) |
-| README RMarkdown       | [link](https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/README.Rmd)                    |
+| Topic                  | url                                                                                                          |
+|:-----------------------|:-------------------------------------------------------------------------------------------------------------|
+| Monte Carlo RMarkdown  | [link](https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/Presentation/MonteCarloSimulation.Rmd) |
+| Presentation slides    | [link](https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/Presentation/presentation.md)          |
+| Presentation RMarkdown | [link](https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/Presentation/presentation.Rmd)         |
+| README RMarkdown       | [link](https://github.com/hcastel1/RealRisk-PowerPlantNPV/blob/master/README.Rmd)                            |
